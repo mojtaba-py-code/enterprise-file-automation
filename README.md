@@ -1,6 +1,6 @@
 # Enterprise File Automation
 
-[![CI](https://github.com/mojtaba-py-code/Enterprise-File-Automation/actions/workflows/ci.yml/badge.svg)](https://github.com/mojtaba-py-code/Enterprise-File-Automation/actions/workflows/ci.yml)
+[![CI](https://github.com/mojtaba-py-code/enterprise-file-automation/actions/workflows/ci.yml/badge.svg)](https://github.com/mojtaba-py-code/enterprise-file-automation/actions/workflows/ci.yml)
 
 A professional, **config-driven** file-automation pipeline. Drop files into an
 inbox and the system classifies, converts, renames, compresses, encrypts, backs
