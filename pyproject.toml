@@ -40,8 +40,9 @@ dev = [
 file-automation = "file_automation.main:main"
 
 [project.urls]
-Homepage = "https://github.com/mojtaba/enterprise-file-automation"
-Repository = "https://github.com/mojtaba/enterprise-file-automation"
+Homepage = "https://github.com/mojtaba-py-code/enterprise-file-automation"
+Repository = "https://github.com/mojtaba-py-code/enterprise-file-automation"
+Issues = "https://github.com/mojtaba-py-code/enterprise-file-automation/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
