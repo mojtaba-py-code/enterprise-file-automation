@@ -79,3 +79,7 @@ show_error_codes = true
 [[tool.mypy.overrides]]
 module = ["schedule"]
 ignore_missing_imports = true
+
+[tool.bandit]
+# Tests deliberately exercise weak inputs and assert on failure paths.
+exclude_dirs = ["tests"]

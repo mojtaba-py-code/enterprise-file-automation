@@ -40,3 +40,13 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+# Runtime output. The pipeline writes its logs beside the config it was given
+# and moves files through ./watched, so both land inside the repository during
+# a local run. Neither belongs in version control: a log records the paths and
+# filenames a real deployment processed, and the watched tree is whatever the
+# last run happened to be fed.
+*.log
+logs/
+config/logs/
+watched/
