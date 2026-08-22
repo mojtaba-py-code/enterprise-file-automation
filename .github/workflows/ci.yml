@@ -42,7 +42,15 @@ jobs:
         run: mypy src
 
       - name: Test (pytest)
-        run: pytest
+        # The floor is a ratchet, not a target: coverage sits above 91%, and a
+        # change that drags it under 85% has to be argued for rather than
+        # merged unnoticed. It lives on this command line rather than in
+        # pyproject's addopts on purpose — applied there it would also govern
+        # `pytest -k something` locally, where a partial run covers a fraction
+        # of the package by design and the gate would fail perfectly good work.
+        # A floor only means anything against the whole suite, which is what
+        # runs here.
+        run: pytest -q --cov=file_automation --cov-report=term-missing --cov-fail-under=85
 
   docker:
     name: Docker image
