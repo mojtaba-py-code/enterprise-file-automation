@@ -99,6 +99,26 @@ def test_failure_retries_capped(
     assert app.run_once().processed == 0
 
 
+def test_unexpected_error_is_contained(
+    config: AppConfig, sample_file: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whatever a processor throws, the run finishes and the file is failed."""
+    from file_automation.processors.classifier import ClassifyProcessor
+
+    def _boom(self: Any, ctx: Any) -> Any:
+        raise RuntimeError("library surprise")
+
+    monkeypatch.setattr(ClassifyProcessor, "process", _boom)
+
+    app = Application(config)
+    app.prepare_directories()
+    report = app.run_once()
+
+    assert report.processed == 1
+    assert report.failed == 1
+    assert "library surprise" in (report.results[0].error or "")
+
+
 def test_oversized_image_fails_only_that_file(
     config_dict: dict[str, Any], make_config: Any
 ) -> None:

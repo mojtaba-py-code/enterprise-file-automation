@@ -105,6 +105,19 @@ class Pipeline:
                 original_hash=item.file_hash,
                 error=f"I/O error: {exc}",
             )
+        except Exception as exc:
+            # Last line of defence. A processor — or a library it calls — can
+            # raise something no one anticipated for one hostile input, and the
+            # remaining files must still be processed. Logged with a traceback
+            # so the surprise is recorded rather than swallowed.
+            _log.exception("unexpected error on %s", item.path.name)
+            self._quarantine(item.path)
+            return ProcessResult(
+                source_path=item.path,
+                status="failed",
+                original_hash=item.file_hash,
+                error=f"unexpected error: {exc}",
+            )
         finally:
             shutil.rmtree(staging_dir, ignore_errors=True)
 
