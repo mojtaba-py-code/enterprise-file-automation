@@ -4,6 +4,9 @@ Batch mode: on each run we walk the inbox, hash every regular file and ask the
 :class:`~file_automation.state.StateStore` whether it still needs work. This is
 simple and robust — no OS file-watching required — and the hash-based state
 makes it idempotent.
+
+Only real files are picked up: symlinks are reported and skipped, never
+followed, so nothing outside the inbox can be pulled into a run.
 """
 
 from __future__ import annotations
@@ -38,8 +41,16 @@ class InboxWatcher:
             return
         globber = self._inbox.rglob("*") if self._recursive else self._inbox.glob("*")
         for path in sorted(globber):
+            if path.name.startswith("."):
+                continue
+            if path.is_symlink():
+                # is_file() follows the link, so a symlink dropped in the inbox
+                # would have its target's contents read, copied to output/ and
+                # backed up — data from outside the directory we were pointed at.
+                _log.warning("skipping symlink in inbox: %s", path)
+                continue
             # Skip directories and anything that isn't a real, readable file.
-            if path.is_file() and not path.name.startswith("."):
+            if path.is_file():
                 yield path
 
     def scan(self) -> list[Discovered]:

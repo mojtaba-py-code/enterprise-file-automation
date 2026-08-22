@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from file_automation.config import AppConfig
 from file_automation.state import StateStore
 from file_automation.watcher import InboxWatcher
@@ -26,6 +28,20 @@ def test_scan_skips_hidden_files(config: AppConfig) -> None:
     (config.paths.inbox / ".hidden").write_text("x", encoding="utf-8")
     watcher, _ = _watcher(config)
     assert watcher.scan() == []
+
+
+def test_symlink_is_skipped(config: AppConfig, sample_file: Path) -> None:
+    """A symlink is never followed: its target lives outside the inbox."""
+    outside = config.paths.inbox.parent / "outside.txt"
+    outside.write_text("not the pipeline's to copy", encoding="utf-8")
+    link = config.paths.inbox / "link.txt"
+    try:
+        link.symlink_to(outside)
+    except (OSError, NotImplementedError):  # pragma: no cover - platform dependent
+        pytest.skip("symlinks not permitted on this platform")
+
+    watcher, _ = _watcher(config)
+    assert [d.path for d in watcher.scan()] == [sample_file]
 
 
 def test_scan_missing_inbox_is_empty(config: AppConfig) -> None:
