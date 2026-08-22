@@ -44,6 +44,30 @@ jobs:
       - name: Test (pytest)
         run: pytest
 
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    # Deliberately not `needs: test`. A base-image pull or a registry hiccup
+    # must not be able to cancel the test job and hide a real failure.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The docker CLI is preinstalled on the runner, so this needs no action
+      # to pin, no registry credentials, and the image never leaves the job.
+      - name: Build the image
+        run: docker build -t enterprise-file-automation:ci .
+
+      # Proves the entrypoint resolves and the package imports inside the
+      # image — the README's `docker build` recipe is otherwise unverified.
+      - name: Entrypoint runs
+        run: docker run --rm enterprise-file-automation:ci --help
+
+      - name: Image does not run as root
+        run: |
+          uid="$(docker run --rm --entrypoint id enterprise-file-automation:ci -u)"
+          echo "container uid: $uid"
+          test "$uid" != "0"
+
   security:
     name: Security scan
     runs-on: ubuntu-latest

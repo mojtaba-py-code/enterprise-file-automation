@@ -6,7 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- CI builds the container image, runs its entrypoint and fails if the image
+  would run as root. The `Dockerfile` and the README's `docker build` recipe
+  shipped without anything ever exercising them.
 
 ## [1.1.0] - 2026-08-22
 
