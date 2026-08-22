@@ -21,6 +21,16 @@ ENV/
 .env.*
 !.env.example
 
+# Keys and certificates. Nothing here is ever meant to be committed, and a
+# pattern costs nothing next to rotating a leaked key.
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa*
+credentials.json
+
 # Databases
 *.db
 *.sqlite
