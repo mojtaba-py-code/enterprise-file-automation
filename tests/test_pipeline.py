@@ -99,6 +99,28 @@ def test_failure_retries_capped(
     assert app.run_once().processed == 0
 
 
+def test_oversized_image_fails_only_that_file(
+    config_dict: dict[str, Any], make_config: Any
+) -> None:
+    """A decompression bomb is one failed file, not an aborted run."""
+    from PIL import Image
+
+    config_dict["pipeline"] = ["classify", "convert"]
+    config_dict["convert"] = {"enabled": True, "max_pixels": 16, "rules": {".png": ".jpg"}}
+    cfg: AppConfig = make_config(config_dict)
+    cfg.paths.inbox.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (64, 64), (1, 2, 3)).save(cfg.paths.inbox / "bomb.png")
+    (cfg.paths.inbox / "note.txt").write_text("fine", encoding="utf-8")
+
+    app = Application(cfg)
+    app.prepare_directories()
+    report = app.run_once()
+
+    assert report.processed == 2
+    assert report.failed == 1
+    assert report.succeeded == 1  # the healthy file still went through
+
+
 def test_staging_is_cleaned(config: AppConfig, sample_file: Path) -> None:
     app = Application(config)
     app.prepare_directories()

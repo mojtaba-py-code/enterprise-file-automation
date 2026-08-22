@@ -13,6 +13,7 @@ is only needed when conversion actually runs.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import ClassVar
 
@@ -90,18 +91,37 @@ class ConvertProcessor(Processor):
 
         destination = path.with_suffix(target_ext)
         save_format = _SAVE_FORMAT[target_ext]
+        # A few kilobytes of crafted header can claim billions of pixels, so cap
+        # what Pillow is willing to decode at the configured ceiling. The limit
+        # is process-global, hence the restore below.
+        previous_limit = Image.MAX_IMAGE_PIXELS
+        Image.MAX_IMAGE_PIXELS = self._cfg.max_pixels
         try:
-            with Image.open(path) as img:
-                out: PILImage = img
-                if target_ext in _NEEDS_RGB and img.mode not in ("RGB", "L"):
-                    out = img.convert("RGB")
-                save_kwargs: dict[str, object] = {}
-                if save_format in ("JPEG", "WEBP"):
-                    save_kwargs["quality"] = self._cfg.image_quality
-                out.save(destination, format=save_format, **save_kwargs)
-        except (OSError, UnidentifiedImageError, ValueError) as exc:
+            with warnings.catch_warnings():
+                # Pillow only raises past *twice* the limit and merely warns in
+                # between; promote the warning so the ceiling is the ceiling.
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(path) as img:
+                    out: PILImage = img
+                    if target_ext in _NEEDS_RGB and img.mode not in ("RGB", "L"):
+                        out = img.convert("RGB")
+                    save_kwargs: dict[str, object] = {}
+                    if save_format in ("JPEG", "WEBP"):
+                        save_kwargs["quality"] = self._cfg.image_quality
+                    out.save(destination, format=save_format, **save_kwargs)
+        except (
+            OSError,
+            UnidentifiedImageError,
+            ValueError,
+            # Neither of these is an OSError, so without them a single hostile
+            # image escapes the pipeline's per-file handler and ends the run.
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+        ) as exc:
             destination.unlink(missing_ok=True)
             raise ProcessorError(self.name, f"cannot convert {path.name}: {exc}") from exc
+        finally:
+            Image.MAX_IMAGE_PIXELS = previous_limit
 
         # Remove the pre-conversion working file so staging stays clean.
         if destination != path:

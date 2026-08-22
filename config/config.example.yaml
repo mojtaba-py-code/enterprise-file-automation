@@ -52,6 +52,7 @@ classify:
 convert:
   enabled: true
   image_quality: 85
+  max_pixels: 89478485       # refuse bigger images (decompression bombs)
   rules:
     ".png": ".webp"
     ".bmp": ".png"

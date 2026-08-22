@@ -168,3 +168,34 @@ def test_convert_unsupported_pair_is_skipped(text_source: Path, tmp_path: Path) 
 def test_convert_disabled_without_rules(tmp_path: Path) -> None:
     cfg = ConvertConfig(enabled=True, image_quality=80, rules={})
     assert ConvertProcessor(cfg).enabled is False
+
+
+def _png(tmp_path: Path, size: tuple[int, int]) -> Path:
+    from PIL import Image
+
+    src = tmp_path / "in" / "big.png"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", size, (10, 20, 30)).save(src)
+    return src
+
+
+# 64 * 64 = 4096 pixels; Pillow raises past twice the limit and warns above it.
+@pytest.mark.parametrize("max_pixels", [16, 3000])
+def test_convert_rejects_an_oversized_image(tmp_path: Path, max_pixels: int) -> None:
+    """A decompression bomb fails this one file, not the whole run.
+
+    Pillow signals these with DecompressionBombError/Warning, neither of which
+    is an OSError, so they must be translated into a ProcessorError.
+    """
+    from PIL import Image
+
+    limit_before = Image.MAX_IMAGE_PIXELS
+    ctx = _context(_png(tmp_path, (64, 64)), tmp_path / "s")
+    cfg = ConvertConfig(
+        enabled=True, image_quality=80, max_pixels=max_pixels, rules={".png": ".jpg"}
+    )
+    with pytest.raises(ProcessorError):
+        ConvertProcessor(cfg).process(ctx)
+
+    assert not (tmp_path / "s" / "big.jpg").exists()  # no half-written output
+    assert limit_before == Image.MAX_IMAGE_PIXELS  # limit restored for other work

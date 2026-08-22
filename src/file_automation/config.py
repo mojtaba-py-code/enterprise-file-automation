@@ -20,6 +20,9 @@ KNOWN_STEPS: frozenset[str] = frozenset(
     {"classify", "convert", "rename", "compress", "encrypt", "backup"}
 )
 
+# Largest image the converter will decode, in pixels (Pillow's own default).
+DEFAULT_MAX_PIXELS = 89_478_485
+
 
 # --------------------------------------------------------------------------- #
 # Small typed helpers for reading a mapping with clear error messages.
@@ -95,6 +98,9 @@ class ClassifyConfig:
 class ConvertConfig:
     enabled: bool = True
     image_quality: int = 85
+    #: Refuse to decode an image larger than this; a few kilobytes of crafted
+    #: header can otherwise claim billions of pixels and exhaust memory.
+    max_pixels: int = DEFAULT_MAX_PIXELS
     rules: dict[str, str] = field(default_factory=dict)  # from_ext -> to_ext
 
 
@@ -223,6 +229,9 @@ def _parse_convert(raw: dict[str, Any]) -> ConvertConfig:
     return ConvertConfig(
         enabled=_as_bool(_get(raw, "enabled", True), "convert.enabled"),
         image_quality=_as_int(_get(raw, "image_quality", 85), "convert.image_quality", minimum=1),
+        max_pixels=_as_int(
+            _get(raw, "max_pixels", DEFAULT_MAX_PIXELS), "convert.max_pixels", minimum=1
+        ),
         rules=rules,
     )
 
