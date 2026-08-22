@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import smtplib
+import ssl
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from file_automation.config import EmailConfig
 from file_automation.models import ProcessResult
@@ -58,6 +63,47 @@ def test_build_message_headers() -> None:
     assert msg["From"] == "from@example.com"
     assert msg["To"] == "to@example.com"
     assert msg["Subject"].startswith("[FA]")
+
+
+def test_starttls_verifies_the_server_certificate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The SMTP password may only travel over a verified connection."""
+    captured: dict[str, Any] = {}
+
+    class _FakeSMTP:
+        def __init__(self, host: str, port: int, timeout: int = 0) -> None:
+            captured["host"] = host
+
+        def __enter__(self) -> _FakeSMTP:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def starttls(self, *, context: ssl.SSLContext | None = None) -> None:
+            captured["context"] = context
+
+        def login(self, username: str, password: str) -> None:
+            captured["login"] = username
+
+        def send_message(self, message: object) -> None:
+            captured["sent"] = True
+
+    monkeypatch.setattr(smtplib, "SMTP", _FakeSMTP)
+    cfg = EmailConfig(
+        enabled=True,
+        smtp_host="smtp.example.com",
+        sender="from@example.com",
+        recipients=("to@example.com",),
+        use_tls=True,
+    )
+
+    assert EmailNotifier(cfg).notify(_report()) is True
+    assert captured["sent"] is True
+
+    context = captured["context"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.check_hostname is True
+    assert context.verify_mode is ssl.CERT_REQUIRED
 
 
 def test_only_on_activity_suppresses_empty() -> None:

@@ -2,13 +2,15 @@
 
 The message body is built by a pure function (:func:`render_report`) so it can
 be unit-tested without any network. Actual delivery uses ``smtplib`` with
-STARTTLS; credentials come from the environment, never the config file.
+STARTTLS against a verified certificate; credentials come from the environment,
+never the config file.
 """
 
 from __future__ import annotations
 
 import os
 import smtplib
+import ssl
 from email.message import EmailMessage
 
 from .config import EmailConfig
@@ -72,7 +74,10 @@ class EmailNotifier:
         try:
             with smtplib.SMTP(self._cfg.smtp_host, self._cfg.smtp_port, timeout=30) as server:
                 if self._cfg.use_tls:
-                    server.starttls()
+                    # Without an explicit context smtplib falls back to one that
+                    # verifies nothing, so any on-path server could present its
+                    # own certificate and collect the password below.
+                    server.starttls(context=ssl.create_default_context())
                 if username and password:
                     server.login(username, password)
                 server.send_message(message)
