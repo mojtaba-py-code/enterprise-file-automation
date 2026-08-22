@@ -79,6 +79,26 @@ file-automation keygen      # generate a new encryption key
 
 Exit codes: `0` success, `1` some files failed, `2` configuration error.
 
+## Docker
+
+```bash
+docker build -t enterprise-file-automation .
+
+docker run --rm \
+  -v "$PWD/config/config.yaml:/app/config/config.yaml:ro" \
+  -v "$PWD/inbox:/app/watched/inbox" \
+  -v "$PWD/output:/app/watched/output" \
+  -e FILE_AUTOMATION_ENCRYPTION_KEY \
+  enterprise-file-automation run-once
+```
+
+The image runs as the unprivileged user `automation` (uid 10001) and ships no
+configuration of its own: mount your `config.yaml` over
+`/app/config/config.yaml` and mount the inbox and output directories you want
+it to use. Secrets are passed as environment variables, never baked into the
+image. The default command is `run` (the scheduler); pass `run-once` for a
+single cycle, as above.
+
 ## Security notes
 
 - Encryption keys and SMTP passwords are read from environment variables only.
