@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  # A dependency does not have to change for it to become vulnerable. Monday
+  # morning re-runs bandit and pip-audit against a fresh advisory database, so
+  # a CVE published against an unchanged pin still gets noticed.
+  schedule:
+    - cron: "0 6 * * 1"
 
 # The pipeline only reads the checkout.  Any job needing more asks for it
 # explicitly at the job level.
