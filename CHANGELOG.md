@@ -7,13 +7,6 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- CI builds the container image, runs its entrypoint and fails if the image
-  would run as root. The `Dockerfile` and the README's `docker build` recipe
-  shipped without anything ever exercising them.
-
-## [1.1.0] - 2026-08-22
-
-### Added
 - Container image: a multi-stage `Dockerfile` that installs from wheels and
   runs the pipeline as an unprivileged uid. The config, the watched
   directories and the encryption key are supplied at run time, never baked in.
@@ -22,6 +15,9 @@ All notable changes to this project are documented here. The format follows
 - Security policy (`SECURITY.md`) and a contributing guide.
 - A weekly CI run, so bandit and pip-audit re-check unchanged pins against a
   fresh advisory database, plus a secret scan across the whole history.
+- CI builds the container image, runs its entrypoint and fails if the image
+  would run as root. The `Dockerfile` and the README's `docker build` recipe
+  shipped without anything ever exercising them.
 
 ### Changed
 - GitHub Actions are pinned to commit SHAs and the workflow token is scoped to
@@ -67,6 +63,5 @@ All notable changes to this project are documented here. The format follows
 - Optional e-mail reporting, console and rotating-file logging, and a CLI with
   `run`, `run-once`, `init` and `keygen`.
 
-[Unreleased]: https://github.com/mojtaba-py-code/enterprise-file-automation/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/mojtaba-py-code/enterprise-file-automation/compare/v1.0.0...v1.1.0
+[Unreleased]: https://github.com/mojtaba-py-code/enterprise-file-automation/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/mojtaba-py-code/enterprise-file-automation/releases/tag/v1.0.0
