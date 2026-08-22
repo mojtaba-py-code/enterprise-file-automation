@@ -4,7 +4,8 @@ Design guarantees:
 
 * The inbox file is never mutated — all work happens on a staging copy.
 * A failure in one file never aborts the run; that file is recorded as failed
-  and (optionally) copied to the ``failed/`` directory for inspection.
+  and, once its retries are spent, copied to the ``failed/`` directory for
+  inspection.
 * Generated artifacts land in ``output/`` (separate from the inbox) so they are
   never re-scanned and reprocessed.
 """
@@ -89,35 +90,17 @@ class Pipeline:
             )
         except ProcessorError as exc:
             _log.error("failed %s: %s", item.path.name, exc)
-            self._quarantine(item.path)
-            return ProcessResult(
-                source_path=item.path,
-                status="failed",
-                original_hash=item.file_hash,
-                error=str(exc),
-            )
+            return self._failure(item, str(exc))
         except OSError as exc:
             _log.error("I/O error on %s: %s", item.path.name, exc)
-            self._quarantine(item.path)
-            return ProcessResult(
-                source_path=item.path,
-                status="failed",
-                original_hash=item.file_hash,
-                error=f"I/O error: {exc}",
-            )
+            return self._failure(item, f"I/O error: {exc}")
         except Exception as exc:
             # Last line of defence. A processor — or a library it calls — can
             # raise something no one anticipated for one hostile input, and the
             # remaining files must still be processed. Logged with a traceback
             # so the surprise is recorded rather than swallowed.
             _log.exception("unexpected error on %s", item.path.name)
-            self._quarantine(item.path)
-            return ProcessResult(
-                source_path=item.path,
-                status="failed",
-                original_hash=item.file_hash,
-                error=f"unexpected error: {exc}",
-            )
+            return self._failure(item, f"unexpected error: {exc}")
         finally:
             shutil.rmtree(staging_dir, ignore_errors=True)
 
@@ -137,6 +120,31 @@ class Pipeline:
         destination = _unique(self._cfg.paths.output / ctx.working_path.name)
         shutil.move(str(ctx.working_path), str(destination))
         return destination
+
+    def _failure(self, item: Discovered, error: str) -> ProcessResult:
+        """Build a failed result, quarantining the file once its retries run out.
+
+        The attempt that just failed is the one the state store is about to
+        record, so it counts here. Quarantining on every attempt instead would
+        leave ``max_retries`` near-identical copies of the same input in
+        ``failed/``.
+        """
+        attempt = self._state.attempts_for(item.file_hash) + 1
+        if attempt >= self._cfg.max_retries:
+            self._quarantine(item.path)
+        else:
+            _log.debug(
+                "%s failed on attempt %d of %d; will retry",
+                item.path.name,
+                attempt,
+                self._cfg.max_retries,
+            )
+        return ProcessResult(
+            source_path=item.path,
+            status="failed",
+            original_hash=item.file_hash,
+            error=error,
+        )
 
     def _quarantine(self, source: Path) -> None:
         """Copy a failed source file to ``failed/`` for manual inspection."""

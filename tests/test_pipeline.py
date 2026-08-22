@@ -65,6 +65,7 @@ def test_failure_quarantines_and_records(
     # Enable encryption but provide no key -> every file fails deterministically.
     config_dict["pipeline"] = ["classify", "encrypt"]
     config_dict["encrypt"] = {"enabled": True, "key_env": "MISSING_KEY_VAR"}
+    config_dict["max_retries"] = 1  # one attempt, so this failure is the last one
     monkeypatch.delenv("MISSING_KEY_VAR", raising=False)
     cfg: AppConfig = make_config(config_dict)
 
@@ -94,9 +95,14 @@ def test_failure_retries_capped(
     app = Application(cfg)
     app.prepare_directories()
     assert app.run_once().failed == 1  # attempt 1
+    # Still retryable, so nothing is quarantined yet.
+    assert list(cfg.paths.failed.iterdir()) == []
     assert app.run_once().failed == 1  # attempt 2
     # Third scan: attempts hit max_retries -> file skipped, nothing processed.
     assert app.run_once().processed == 0
+    # Exactly one copy of the input, not one per attempt.
+    quarantined = sorted(p.name for p in cfg.paths.failed.iterdir())
+    assert quarantined == ["x.txt"]
 
 
 def test_unexpected_error_is_contained(
